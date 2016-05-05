@@ -22,11 +22,11 @@
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
         <processorPath useClasspath="true" />
-        <module name="untitled" />
+        <module name="tiA-a" />
       </profile>
     </annotationProcessing>
     <bytecodeTargetLevel>
-      <module name="untitled" target="1.5" />
+      <module name="tiA-a" target="1.6" />
     </bytecodeTargetLevel>
   </component>
 </project>
