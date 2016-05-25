@@ -1,18 +1,27 @@
 package createIbaits;
 
+import org.springframework.util.StringUtils;
+
 import java.util.ArrayList;
 import java.util.List;
 
 /**
  * Created by jnkmhbl on 16/5/5.
+ *
+ * 从表创建语句导出表名字，字段名字和字段类型
  */
 public class SqlResolve {
 
-    public static  void main(String []args){
-        SqlResolve sqlResolve = new SqlResolve();
 
+    public TableEntity solve(String sql){
+        List<Character> chars = new ArrayList<Character>();
+        chars.add('\r'); chars.add('\n');
+        String tmp = TrStringHelper.filterCharacter(sql, chars);
+        return new TableEntity(resolveTableName(tmp),resolveColumn(tmp));
     }
-    public  String resolveTableName(String sql){
+
+
+    private   String resolveTableName(String sql){
       List<String> elements = new ArrayList<String>();
       boolean tableReaded = false ;
       StringBuilder builder =  new StringBuilder();
@@ -25,8 +34,8 @@ public class SqlResolve {
                 if(builder.length() !=0 ){
                     String content =builder.toString();
                     if(tableReaded){
-                        filtInvalidChar(content.toString());
-                        return content.toString();
+                        filtInvalidCharTwoSides(content.toString());
+                        return filtInvalidCharTwoSides(content.toString());
                     }
                     builder = new StringBuilder();
                     if(content.equalsIgnoreCase("table")){
@@ -37,16 +46,16 @@ public class SqlResolve {
                 builder.append(tmp);
             }
         }
-        return  "";
+        return  filtInvalidCharTwoSides(toString());
     }
 
-    private String getTableName(String sql){
-           return  "";
-    }
 
 
     //取出表名两侧可能存在的符号
-    private String filtInvalidChar(String tableName){
+    private String filtInvalidCharTwoSides(String tableName){
+        if(StringUtils.isEmpty(tableName)){
+            return  "";
+        }
         int start =0;
         int end =tableName.length();
         while(true) {
@@ -63,52 +72,62 @@ public class SqlResolve {
                 break;
             }
         }
-       return tableName.substring(start,end);
+       return tableName.substring(start, end);
     }
 
 
-    private void resolveColumn(String sql){
-       String content = sql.substring(sql.indexOf('('),sql.lastIndexOf(')')-1);
+    private List<ColumnEntry> resolveColumn(String sql){
+       String content = sql.substring(sql.indexOf('(')+1,sql.lastIndexOf(')')-1);
+        List<ColumnEntry> columnEntries = new ArrayList<ColumnEntry>();
        String[] columns = content.split(",");
-       for(String column : columns){
+       int newIndex = 0;
+       //将可能被,号隔离开的行重新凑到一起
+        String [] newColumns = new String[columns.length];
+        for(int i =0 ;i<columns.length;i++){
+            String tmp = columns[i];
+            for(int tmpIndex = tmp.length()-1;tmpIndex >= 0 ; tmpIndex -- ){
+                char code = tmp.charAt(tmpIndex);
+                if(code == ')'){
+                    newColumns[newIndex] = tmp;
+                    newIndex ++;
+                    break ;
+                }
+                if(code == '(' && i != columns.length -1){
+                    newColumns[newIndex] = columns[i]+columns[i+1];
+                    newIndex ++;
+                    i++;
+                    break;
+                }
+                if(tmpIndex == 0){
+                    newColumns[newIndex] = columns[i];
+                    newIndex ++;
+                    break;
+                }
+            }
+        }
+       for(String column : newColumns){
          if(!isColumnContent(column)){
              continue;
          }
            //取出字段名称和类型
-          String [] eles = splitBlank(column);
+          String [] eles = TrStringHelper.splitBlank(column);
 
            //todo 已经支持自动生成column name  & type
-          System.out.println(this.filtInvalidChar(eles[0]) +"  "+eles[1]);
+          try {
+              ColumnEntry entry = new ColumnEntry();
+              entry.setName(filtInvalidCharTwoSides(eles[0]));
+              entry.setType(eles[1]);
+              columnEntries.add(entry);
+          }catch (Exception e){
+              System.out.println("hehe");
+          }
        }
-
+          return columnEntries;
     }
 
     private boolean isColumnContent(String column){
-        if((column.contains("text")||column.contains("decimal")||column.contains("int(") || column.contains("datetime")||column.contains("char"))){
-            return true;
-        }
-            return false;
+       return TableSolveHelper.isColumn(column);
     }
 
 
-    private String[]  splitBlank(String content){
-        List<String> result = new ArrayList<String>();
-        StringBuilder builder = new StringBuilder();
-        for(char a :content.toCharArray()){
-            if(a ==' ' || a=='\r' ||a == '\n'){
-                if(builder.length() != 0){
-                    result.add(builder.toString());
-                    builder = new StringBuilder();
-                }
-            }else{
-                builder.append(a);
-            }
-        }
-        String [] tmp = new String[result.size()];
-        int idx = 0;
-        for(String a : result){
-            tmp[idx] = a;
-            idx ++;
-        }return tmp;
-    }
 }
